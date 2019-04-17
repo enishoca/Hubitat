@@ -27,8 +27,7 @@ definition(
   parent: "enishoca:X-10 Node Red Bridge",
   iconUrl: "http://cdn.device-icons.smartthings.com/Home/home4-icn@2x.png",
   iconX2Url: "http://cdn.device-icons.smartthings.com/Home/home4-icn@2x.png",
-  iconX3Url: "http://cdn.device-icons.smartthings.com/Home/home4-icn@2x.png",
-  singleInstance: true
+  iconX3Url: "http://cdn.device-icons.smartthings.com/Home/home4-icn@2x.png"
 )
 
 preferences {

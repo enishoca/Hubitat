@@ -21,32 +21,6 @@ metadata {
         capability "Switch"
         capability "Switch Level"
     }
-
-	// simulator metadata
-	simulator {
-	}
-
-	// UI tile definitions
-	tiles(scale: 2) {
-		multiAttributeTile(name: "switch", type: "lighting", width: 6, height: 4, canChangeIcon: true, canChangeBackground: true) {
-			tileAttribute("device.switch", key: "PRIMARY_CONTROL") {
-    			attributeState "off", label: '${name}', action: "switch.on", icon: "st.switches.light.off", backgroundColor: "#ffffff", nextState: "turningOn"
-		      	attributeState "on", label: '${name}', action: "switch.off", icon: "st.switches.light.on", backgroundColor: "#79b821", nextState: "turningOff"
-				attributeState "turningOff", label: '${name}', action: "switch.on", icon: "st.switches.light.off", backgroundColor: "#ffffff", nextState: "turningOn"
-		      	attributeState "turningOn", label: '${name}', action: "switch.off", icon: "st.switches.light.on", backgroundColor: "#79b821", nextState: "turningOff"
-        	}
-            tileAttribute("level", key: "SECONDARY_CONTROL") {
-                attributeState "level", label: 'Light dimmed to ${currentValue}' //%'
-            }    
-		}
- 
-		controlTile("dimmerSliderControl", "device.level", "slider", height: 2, width: 2, range: "0..100", inactiveLabel: false) {
-			state "default", action:"setLevel"
-		}    
-		main "switch"
-		details(["switch",
-        "dimmerSliderControl"])
-	}
 }
 
 // parse events into attributes

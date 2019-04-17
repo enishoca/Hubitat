@@ -27,8 +27,7 @@ definition(
   parent: "enishoca:X-10 Node Red Bridge",
   iconUrl: "http://cdn.device-icons.smartthings.com/Home/home4-icn@2x.png",
   iconX2Url: "http://cdn.device-icons.smartthings.com/Home/home4-icn@2x.png",
-  iconX3Url: "http://cdn.device-icons.smartthings.com/Home/home4-icn@2x.png",
-  singleInstance: true
+  iconX3Url: "http://cdn.device-icons.smartthings.com/Home/home4-icn@2x.png"
 )
 
 preferences {
@@ -95,7 +94,7 @@ def updated() {
 }
 
 def initialize() {
-  //log.debug "My ID = ${app.getId()} Initialized with settings: ${settings}"
+  log.debug "My ID = ${app.getId()} Initialized with settings: ${settings}"
   app.updateLabel("${settings.deviceHouseCode}-${settings.deviceUnitCode} ${settings.deviceName} ")
 }
 
@@ -117,11 +116,13 @@ def addX10Device() {
   //log.debug "Adding Device ${deviceName}"
   if (!deviceName) return
 
-  def getHostHubId = parent.settings.getHostHubId
+  def getHostHubId = location.hubs[0].id //parent.settings.getHostHubId
   def theDeviceNetworkId = getX10DeviceID()
   def theDevice = addChildDevice("enishoca", "X-10 Node Red Device", theDeviceNetworkId, getHostHubId, [label: deviceName, name: deviceName])
   setX10DeviceID(theDevice)
   theDevice.off();
+  state.level = 0;
+  updateX10Device();
   log.debug "New Device added ${deviceName}"
 }
 
@@ -129,13 +130,14 @@ def updateX10Device() {
   //log.debug "Updating Device ${deviceName}"
   // If user didn't fill this device out, skip it
   if (!deviceName) return;
-
+  log.debug "updateX10Device  ${deviceName}"
   def theDeviceNetworkId = getX10DeviceID();
   def theDevice = getDevicebyNetworkId(getX10DeviceID())
   if (theDevice) { // The switch already exists
     setX10DeviceID(theDevice)
     theDevice.label = deviceName
     theDevice.name = deviceName
+	log.debug "Subscribe to events  ${deviceName}"
     subscribe(theDevice, "switch", switchChange)
     subscribe(theDevice, "switch.setLevel", switchSetLevelHandler)
   } 
@@ -151,18 +153,22 @@ def switchSetLevelHandler(evt)
 	if ((evt.value == "on") || (evt.value == "off" ))
 		return
 	int level = evt.value.toInteger()
-    int delta = 0;
+  int delta = 0;
+	int stateLevel = state.level.toInteger()
+	
     def command = "";
-    if ( state.level > level ) {
+    if ( stateLevel > level ) {
     	command = "-dim"
-        delta = state.level - level
-    } else {
+        delta = stateLevel - level
+		
+    } else {   
     	command = "-bright"
-        delta = level - state.level 
+        delta = level - stateLevel 
     }
+ 
     state.level = evt.value.toInteger()
     parent.sendStatetoX10(state.x10DeviceID+command, delta)
-	log.info "switchSetLevelHandler Event: ${level}"
+	log.debug "switchSetLevelHandler Event: ${level}"
 }
 
 

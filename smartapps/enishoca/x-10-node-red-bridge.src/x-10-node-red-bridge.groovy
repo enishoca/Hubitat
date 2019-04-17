@@ -41,10 +41,6 @@ def pageMain() {
   def installed = app.installationState == "COMPLETE"
   dynamicPage(name: "pageMain", title: "", install: true, uninstall: true) {
 
-    section("SmartThings Hub") {
-      input "hostHub", "hub", title: "Select Hub", multiple: false, required: true
-    }
-
     section("Node Red Settings") {
       input "nodeRedAddress", "text", title: "Node Red IP Address", description: "(ie. 192.168.1.10)", required: true
       input "nodeRedPort", "text", title: "Node Red  Port", description: "(ie. 1880)", required: true, defaultValue: "1880"
@@ -108,9 +104,9 @@ def uninstalled() {
 
 def initialize() {
   sendCommand('/register/?' + getNotifyAddress())
-  //log.debug "there are ${childApps.size()} child smartapps"
-
-  subscribe(location, null, lanResponseHandler, [filterEvents: false])
+  log.debug "there are ${childApps.size()} child smartapps"
+  subscribe(location, lanResponseHandler)	
+  //subscribe(location, null, lanResponseHandler, [filterEvents: false])
 }
 
 def updated() {
@@ -202,7 +198,7 @@ private sendCommand(path) {
   def headers = [: ]
   headers.put("HOST", host)
   headers.put("Content-Type", "application/json")
-  def hubAction = new physicalgraph.device.HubAction(
+  def hubAction = new hubitat.device.HubAction(
     method: "GET",
     path: path,
     headers: headers
@@ -245,7 +241,11 @@ private getnodeRedAddress() {
 }
 
 private getNotifyAddress() {
-  return "ip_for_st=" + settings.hostHub.localIP + "&port_for_st=" + settings.hostHub.localSrvPortTCP
+  // only support single hub.
+  def hub = location.hubs[0] 
+  def retString = "ip_for_st=" +  hub.getDataValue("localIP") + "&port_for_st=" + hub.getDataValue("localSrvPortTCP")
+  log.trace retString
+  return retString
 }
 
 private String convertIPtoHex(ipAddress) {
@@ -273,5 +273,7 @@ def sendStatetoX10(deviceString, state) {
 }
 
 def getHostHubId() {
-  return settings.hostHub.id
+  def hub = location.hubs[0]
+  return hub.id
 }
+ 
