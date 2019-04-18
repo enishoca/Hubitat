@@ -103,16 +103,16 @@ def uninstalled() {
 }
 
 def initialize() {
-  sendCommand('/register/?' + getNotifyAddress())
-  log.debug "there are ${childApps.size()} child smartapps"
-  subscribe(location, lanResponseHandler)	
-  //subscribe(location, null, lanResponseHandler, [filterEvents: false])
+
+  addX10Device()
+  setupsubs() 
 }
 
 def updated() {
   unsubscribe()
-  initialize()
+  setupsubs()
 }
+
 
 def removeChildDevices(delete) {
   getChildDevices().find {
@@ -124,42 +124,46 @@ def removeChildDevices(delete) {
   }
 }
 
-def lanResponseHandler(evt) {
-  //log.debug "lanResponseHandler settings: ${settings}"
-  //log.debug "lanResponseHandler state: ${state}"
-  //log.debug "lanResponseHandler Event: ${evt.stringValue}"
+def addX10Device() {
+  //log.debug "Adding Device ${deviceName}"
+  //if (!deviceName) return
+  def deviceName = "Mochad-client"
+  def getHostHubId = location.hubs[0].id //parent.settings.getHostHubId
+  def theDeviceNetworkId = getX10DeviceID()
+  def theDevice = addChildDevice("enishoca", "X-10 Mochad Device", theDeviceNetworkId, getHostHubId, [label: deviceName, name: deviceName])
+  setX10DeviceID(theDevice)
+  updateX10Device();
+  log.debug "New Device added ${deviceName}"
+}
 
-  def map = stringToMap(evt.stringValue)
-  //MAC is set on both HTTP GET response and NOTIFY
-  // if MAC and the SERVER:PORT don't match our server return
-  if ((map.mac != state.nodeRedMac) &&
-    (map.ip != convertIPtoHex(settings.nodeRedAddress) ||
-      map.port != convertPortToHex(settings.nodeRedPort))) {
-    //log.debug "lanResponseHandler not us - returning"
-    return
-  }
+def setupsubs() {
+  log.debug "Updating Device ${deviceName}"
+  def deviceName = "Mochad-client"
+  log.debug "updateX10Device  ${deviceName}"
+  def theDeviceNetworkId = getX10DeviceID();
+  def theDevice = getDevicebyNetworkId(getX10DeviceID())
+  if (theDevice) { // The switch already exists
+    setX10DeviceID(theDevice)
+    theDevice.label = deviceName
+    theDevice.name = deviceName
+	log.debug "Subscribe to events  ${deviceName}"
+    subscribe(theDevice, "switch", switchChange)
+    subscribe(theDevice, "switch.setLevel", switchSetLevelHandler)
+	subscribe(location, "MochadEvent", MochadEventHandler)
+  } 
+  log.debug "Device updated ${deviceName}"
+}
 
-  def headers = parseHttpHeaders(map.headers);
-  //log.trace "lanResponseHandler Headers: ${headers}"
-
-  //if this is a registration response update the saved mac
-  switch (headers.X10NodeRed) {
-    case 'Registered':
-      log.trace "lanResponseHandler Updating MAC address for Node Red Server: ${state.nodeRedMac}"
-      state.nodeRedMac = map.mac
-      break;
-    case 'DeviceUpdate':
-      def body = parseHttpBody(map.body);
-      log.trace "lanResponseHandler Body: ${body}"
-      processEvent(body)
-      break;
-    //default:
-    //  log.trace "lanResponseHandler Our server - Not our app"
-  }
+ 
+def MochadEventHandler(evt) {
+  log.debug "Mochad event recieved - data: ${evt.data}"	
+  def data = parseJson(evt.data)
+  processEvent(data)
+  return
 }
 
 private processEvent(body) {
-  //log.trace "processEvent Body: ${body}"
+  log.trace "processEvent Body: ${body}"
   //[protocol:rf, unitcode:6, direction:rx, state:on, housecode:h]
   def deviceString = ""
   def status
@@ -178,74 +182,28 @@ private processEvent(body) {
 private updateDevice(deviceString, status) {
   //iterate through all child apps and look for state.idX10device
   //compare that with address if it matches return settings.buttonSwitch
-
   log.debug "updateDevice: Button ${deviceString} ${status} pressed"
   sendLocationEvent(name: "X10RemoteEvent-${deviceString}", value: "updatedX10DeviceStatus", data: ["deviceString": deviceString, 
                     "status": status], source: "DEVICE", isStateChange: true)
 
 }
 
-private sendCommand(path) {
-  log.trace "send comand to Node Red Server at: ${path}"
-
-  if (settings.nodeRedAddress.length() == 0 ||
-    settings.nodeRedPort.length() == 0) {
-    log.error "SmartThings Node Red server configuration not set!"
-    return
-  }
-
-  def host = getnodeRedAddress()
-  def headers = [: ]
-  headers.put("HOST", host)
-  headers.put("Content-Type", "application/json")
-  def hubAction = new hubitat.device.HubAction(
-    method: "GET",
-    path: path,
-    headers: headers
-  )
-  //log.trace hubAction
-  sendHubCommand(hubAction)
-}
-
-private parseHttpHeaders(headers) {
-  def obj = [: ]
-
-  try {
-    new String(headers.decodeBase64()).split("\r\n").each {
-      param ->
-        def nameAndValue = param.split(":")
-      obj[nameAndValue[0]] = (nameAndValue.length == 1) ? "" : nameAndValue[1].trim()
-    }
-  } catch (e) {
-    //prob not json so return null
-    return null
-  }
-  return obj
-}
-
-private parseHttpBody(body) {
-  def obj = null;
-  try {
-    if (body) {
-      def slurper = new JsonSlurper()
-      obj = slurper.parseText(new String(body.decodeBase64()))
-    }
-  } catch (e) {
-    //prob not json so return null
-  }
-  return obj
+private sendTelnet(path)
+{
+  def deviceName = "Mochad-client"
+  log.debug "sendTelnet Device ${deviceName}"
+  
+  def theDeviceNetworkId = getX10DeviceID();
+  def theDevice = getDevicebyNetworkId(getX10DeviceID())
+  if (theDevice) { // 
+	log.debug "The switch already exists ${deviceName}"
+    theDevice.deviceNotification(path)
+  } 
+	
 }
 
 private getnodeRedAddress() {
   return settings.nodeRedAddress + ":" + settings.nodeRedPort
-}
-
-private getNotifyAddress() {
-  // only support single hub.
-  def hub = location.hubs[0] 
-  def retString = "ip_for_st=" +  hub.getDataValue("localIP") + "&port_for_st=" + hub.getDataValue("localSrvPortTCP")
-  log.trace retString
-  return retString
 }
 
 private String convertIPtoHex(ipAddress) {
@@ -268,12 +226,31 @@ private getDevicebyNetworkId(deviceNetworkId) {
 }
 
 def sendStatetoX10(deviceString, state) {
-  log.debug "sendStatetoX10  deviceString ${deviceString}"
-  sendCommand('/push/?' + "device=${deviceString}&action=${state}")
+  //deviceString = deviceString.replace("-"," ")
+  //def X10code = deviceString.tokenize('-') 
+  sendTelnet("${deviceString.replace("-"," ")} ${state}")
 }
 
 def getHostHubId() {
   def hub = location.hubs[0]
   return hub.id
 }
- 
+
+def getX10DeviceID() {
+  if (!state.x10DeviceID) {
+    setX10DeviceID()
+  }
+  return state.x10DeviceID
+}
+
+def setX10DeviceID(theDevice) {
+  state.x10DeviceID = "Mochad-client"  //"${settings.deviceType}-${settings.deviceHouseCode}${settings.deviceUnitCode}"
+  state.deviceString = "Mochad-client" //"${settings.deviceHouseCode}-${settings.deviceUnitCode}"
+  if (theDevice) theDevice.deviceNetworkId = state.x10DeviceID
+}
+
+private getDevicebyNetworkId(String theDeviceNetworkId) {
+  return getChildDevices().find {
+    d -> d.deviceNetworkId.startsWith(theDeviceNetworkId)
+  }
+}
