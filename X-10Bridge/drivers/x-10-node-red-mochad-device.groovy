@@ -59,14 +59,6 @@ def deviceNotification(String text)
 	sendMsg(text)
 }
 
-def setup(String ipAddress, String port) {
-    if (logEnable) log.debug "setup = ${ipAddress}, Port = ${port}"
-	settings.ipAddress = ipAddress
-    settings.port = port
-    if (logEnable) log.debug "setup = ${settings.ipAddress}, Port = ${settings.port}"
-     
-}
-
 def sendMsg(String msg) {
   if (logEnable) log.debug "Sending msg = [${msg}]"
   return new hubitat.device.HubAction(msg, hubitat.device.Protocol.TELNET)
