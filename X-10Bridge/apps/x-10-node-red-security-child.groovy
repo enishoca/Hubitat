@@ -1,5 +1,5 @@
 /**
- *  X-10 Node Red Switch Child Smart App
+ *  X-10 Node Red Security Child Smart App
  *
  * 	Author: Enis Hoca
  *   - enishoca@outlook.com
@@ -19,7 +19,7 @@
 import groovy.json.JsonSlurper
 
 definition(
-  name: "X-10 Node Red Switch Child",
+  name: "X-10 Node Red Security Child",
   namespace: "enishoca",
   author: "Enis Hoca",
   description: "Child Application for 'X-10 Node Red Bridge' - do not install directly.",
@@ -31,196 +31,290 @@ definition(
 )
 
 preferences {
-  page(name: "pageMain", title: "", install: true, uninstall: true) {
-    section(title: "X-10 Switches, Modules and Relays") {
-      input "deviceName", "text", title: "Device Name", required: true
-      input "deviceType", "enum", title: "Device Type RF/PL", required: true, options: [
-        "RF": "(RF) X-10 wireless",
-        "PL": "(PL) X-10 Powerline"
-      ]
-      input "deviceHouseCode", "enum", title: "X-10 House Code", required: true, options: [
-        "A": "A",
-        "B": "B",
-        "C": "C",
-        "D": "D",
-        "E": "E",
-        "F": "F",
-        "G": "G",
-        "H": "H",
-        "I": "I",
-        "J": "J",
-        "K": "K",
-        "L": "L",
-        "M": "M",
-        "N": "N",
-        "O": "O",
-        "P": "P"
-      ]
-      input "deviceUnitCode", "enum", title: "X-10 Unit Code", required: true, options: [
-        "1": "1",
-        "2": "2",
-        "3": "3",
-        "4": "4",
-        "5": "5",
-        "6": "6",
-        "7": "7",
-        "8": "8",
-        "9": "9",
-        "10": "10",
-        "11": "11",
-        "12": "12",
-        "13": "13",
-        "14": "14",
-        "15": "15",
-        "16": "16"
-      ]
-    }
+  page(name: "pageMain")
+}
+
+def pageMain() {
+  if (state.securityCode) {
+    return normalPage() 
+  } else {
+    return discoveryPage() 
   }
 }
 
+def normalPage() {
+  def installed = app.installationState == "COMPLETE"
+  def sectionTitle = "X-10 Security Device Code: ${state.securityCode}"
+  if (!installed)
+  		sectionTitle = "New Security Device Found!!!\n\n"  + sectionTitle
+  return dynamicPage(name: "pageMain", title: "", install: true, uninstall: true) {       
+ 	section(title: sectionTitle) {
+        label(name: "label", title: "Assign a name", defaultValue:"X-10 Sensor ${state.securityCode}", required: true, multiple: false)
+        
+        input(name: "deviceType", title: "Device Type", type: "enum", submitOnChange: true, options: [
+                    "remote" : "Security Remote",
+                    "keyfob" : "Security Key Fob",
+                    "panic" : "Panic Button",
+                    "switch": "Sensor"])
+                    
+        switch (deviceType) {
+          case "remote" : 
+           input(name: "armSwitch", type: "capability.switch", title: "Arm Away / Disarm" , required: false, multiple: true)
+           input(name: "armHomeSwitch", type: "capability.switch", title: "Arm Home / Disarm" , required: false, multiple: true)
+           input(name: "allLights", type: "capability.switch", title: "Security Lights" , required: false, multiple: true)
+           input(name: "panic", type: "capability.switch", title: "Panic" , required: false, multiple: true)
+           break;
+         case "keyfob" : 
+           input(name: "armSwitch", type: "capability.switch", title: "Arm Away / Disarm" , required: false, multiple: true)
+           input(name: "allLights", type: "capability.switch", title: "Lights On/Off" , required: false, multiple: true)
+           input(name: "panic", type: "capability.switch", title: "Panic" , required: false, multiple: true)
+           break;
+        default:         
+          input(name: "buttonSwitch", type: "capability.switch", title: "Select SmartThings switch to pair with" , required: true, multiple: true)
+        }
+      }
+      section("Send low battery and tamper notifications?") {
+        input("recipients", "contact", title: "Send notifications to", required: false, multiple: true) 
+     }
+  }     
+}
+
+//input(name: "deviceType", type: "enum", title: "Device Type", options: ["Security Remote","Security Motion Sensor (MS18A, MS10A etc.)","Blue","Yellow"])
+//input "buttonSwitch", "capability.switch", title: "Select SmartThings switch to control", required: true, multiple: true
+
+def discoveryPage() {
+  subscribe(location, null, lanResponseHandler, [filterEvents: false])
+  return dynamicPage(name: "pageMain", title: "", refreshInterval: 5, install: true, uninstall: true) {
+    section(title: "Please carry out the sequence for registering the security remote or sensor with an X-10 Console on the sensor device.\n\nAny X-10 security device that sends a message, while you are in this mode, will be associated with this SmartApp.\n") {
+       paragraph title: "Device Discovery Mode", required: true,"Looking for X-10 security devices...\n "               
+    }
+    
+  }
+}
+ 
 def installed() {
-  log.debug "Child Installed ${settings.deviceName} ${settings.deviceType} ${settings.deviceHouseCode} ${settings.deviceUnitCode}"
+  log.debug "X-10 Security Child Installed  ${getDeviceString()} ${settings}"
   initialize()
-  addX10Device();
 }
 
 def updated() {
-  unsubscribe()
-  log.debug "Child update with settings: ${settings}"
+  log.debug "X-10 Child Updated ${getDeviceString()} ${settings}"
   initialize()
-  updateX10Device()
-  state.level = 0;
-  subscribe(location, "X10RemoteEvent-${state.deviceString}", X10RemoteEventHandler)
 }
 
 def initialize() {
-  log.debug "My ID = ${app.getId()} Initialized with settings: ${settings}"
-  app.updateLabel("${settings.deviceHouseCode}-${settings.deviceUnitCode} ${settings.deviceName} ")
+  unsubscribe()
+  log.debug "Subscribing to event [X10RemoteEvent-${state.deviceString}]"
+  state.nodeRedMac = parent.state.nodeRedMac
+  //app.updateLabel("${getDeviceString()} Controlling ${settings.buttonSwitch} ")
+  state.deviceString = getDeviceString()
+  subscribe(location, "X10RemoteEvent-${state.deviceString}", X10RemoteEventHandler)
 }
 
 def uninstalled() {
-  log.debug "Child Switch uninstalled"
+  log.debug "Child uninstalled"
 }
 
-def removeChildDevices(delete) {
-  log.debug "removeChildDevices"
-  getChildDevices().find {
-    d -> d.deviceNetworkId.startsWith(theDeviceNetworkId)
-  }
-  delete.each {
-    deleteChildDevice(it.deviceNetworkId)
+def getDeviceString() { 
+ try {
+  return "${state.securityCode}-*"
+  } catch (e){
+   return ""
   }
 }
 
-def addX10Device() {
-  //log.debug "Adding Device ${deviceName}"
-  if (!deviceName) return
+def lanResponseHandler(evt) {
+  //log.debug "sec-lanResponseHandler state: ${state}"
+  log.debug "sec-lanResponseHandler Event: ${evt.stringValue}"
 
-  def getHostHubId = location.hubs[0].id //parent.settings.getHostHubId
-  def theDeviceNetworkId = getX10DeviceID()
-  def theDevice = addChildDevice("enishoca", "X-10 Node Red Device", theDeviceNetworkId, getHostHubId, [label: deviceName, name: deviceName])
-  setX10DeviceID(theDevice)
-  theDevice.off();
-  state.level = 0;
-  updateX10Device();
-  log.debug "New Device added ${deviceName}"
+  def map = stringToMap(evt.stringValue)
+  def headers = parent.parseHttpHeaders(map.headers);
+  //log.trace "sec-lanResponseHandler Headers: ${headers}"
+
+  //if this is a registration response update the saved mac
+  if (headers.X10NodeRed == 'DeviceUpdate') {
+      def body = parent.parseHttpBody(map.body);
+      log.trace "sec-lanResponseHandler Body: ${body}"
+      parseSecurityCode(body)
+  }
 }
 
-def updateX10Device() {
-  //log.debug "Updating Device ${deviceName}"
-  // If user didn't fill this device out, skip it
-  if (!deviceName) return;
-  log.debug "updateX10Device  ${deviceName}"
-  def theDeviceNetworkId = getX10DeviceID();
-  def theDevice = getDevicebyNetworkId(getX10DeviceID())
-  if (theDevice) { // The switch already exists
-    setX10DeviceID(theDevice)
-    theDevice.label = deviceName
-    theDevice.name = deviceName
-	log.debug "Subscribe to events  ${deviceName}"
-    subscribe(theDevice, "switch", switchChange)
-    subscribe(theDevice, "switch.setLevel", switchSetLevelHandler)
-  } 
-}
+private parseSecurityCode(body) {
+  log.trace "processEvent Body: ${body}"
+  // [protocol:rfsec, unitcode:*, direction:rx, state:motion_normal_sp554a, housecode:0x6d]
+  def deviceString = ""
+  def status
 
-def switchChange(evt) {
-  log.debug "Switch event!setting state now for ${state.x10DeviceID} to ${evt.value}"
-  parent.sendStatetoX10(state.x10DeviceID, evt.value)
+  def housecodekey = "housecode"
+  if ((body.containsKey(housecodekey)) && (body.unitcode == '*')) {
+    state.securityCode = body.housecode.toUpperCase()
+    log.trace "New securityCode set: ${state.securityCode}"
+  }
 }
-
-def switchSetLevelHandler(evt)
-{	
-	log.debug "Switch switchSetLevelHandler ${evt.value}"
-	if ((evt.value == "on") || (evt.value == "off" ))
-		return
- 
-	int level = evt.value.toInteger()
-    int delta = 0;
-	int stateLevel = state.level.toInteger()
-	
-    def command = "";
-	 
-    if ( stateLevel > level ) {
-    	command = "-dim"
-        delta = stateLevel - level
-		
-    } else {   
-    	command = "-bright"
-        delta = level - stateLevel 
-    }
- 
-    state.level = evt.value.toInteger()
-	log.debug "state.level ${state.level}"
-    parent.sendStatetoX10(state.x10DeviceID+command, delta)
-	log.debug "switchSetLevelHandler Event: ${level}"
-}
-
 
 def X10RemoteEventHandler(evt) {
-  log.debug "X10RemoteEventHandler Event: ${evt.stringValue}"
+
   def data = parseJson(evt.data)
+  log.debug "X-10 security sensor event recieved: [${data.deviceString}], [${data.status}]"
   setDeviceStatus(data.deviceString, data.status)
+  return
 }
 
+
+  /* Possible status values returned by mochad
+     _low indicates low battery
+     _tamper indicates tamper alert
+     
+     "Motion_alert_MS10A" 
+     "Motion_normal_MS10A"
+     "Motion_alert_low_MS10A"
+     "Motion_normal_low_MS10A"
+     "Contact_alert_min_DS10A"
+     "Contact_normal_min_DS10A"
+     "Contact_alert_min_tamper_DS12A"
+     "Contact_normal_min_tamper_DS12A"
+     "Contact_alert_max_DS10A"
+     "Contact_normal_max_DS10A"
+     "Contact_alert_max_tamper_DS12A"
+     "Contact_normal_max_tamper_DS12A"
+     "Contact_alert_min_low_DS10A"
+     "Contact_normal_min_low_DS10A"
+     "Contact_alert_max_low_DS10A"
+     "Contact_normal_max_low_DS10A"}
+     "Arm_KR10A"
+     "Disarm_KR10A"
+     "Lights_On_KR10A"
+     "Lights_Off_KR10A"
+     "Panic_KR10A"
+     "Panic_KR15A"
+  */
+  
+  /*
+    "remote" : "Security Remote",
+    "keyfob" : "Security Key Fob",
+    "panic" : "Panic Button",
+    "switch": "Sensor"])
+  */
+  
 def setDeviceStatus(deviceString, status) {
-  log.debug "Child setDeviceStatus deviceString:[${deviceString}]  state.deviceString:[${state.deviceString}]"
-  def theDevice = getDevicebyNetworkId(getX10DeviceID())
-  if ((theDevice) && (deviceString == state.deviceString)) { // The switch already exists
-      int level = theDevice.currentValue("level").toInteger()
-      switch (status) {
-      case "on":
-        theDevice.on()
-        //log.trace ("Turning on")
-        break
-      case "off":
-        theDevice.off()
-        //log.trace ("Turning off")
-        break
-      case "dim":   
-        theDevice.setLevel(level - 1)
-        break
-      case "bright":
-        theDevice.setLevel(level + 1)
-        break
-     } 
-  } 
-}
+  
+  if (deviceString == state.deviceString) {
+ 
+      switch (settings.deviceType) {
+          case "remote":
+            remoteHandler(status)
+            break
+            
+          case "keyfob": 
+            keyfobHandler(status) 
+            break
 
-def getX10DeviceID() {
-  if (!state.x10DeviceID) {
-    setX10DeviceID()
+          default:
+            switchHandler (status)
+            break
+      }
+      
+     if (status.contains('low')) {
+        sendNotif("Low battery alert")
+        //log.trace ("low battery alert")
+     }
+     
+     if (status.contains('tamper')) {
+        sendNotif("Tamper alert")
+        //log.trace ("tamper alert")
+     }
+     
   }
-  return state.x10DeviceID
 }
 
-def setX10DeviceID(theDevice) {
-  state.x10DeviceID = "${settings.deviceType}-${settings.deviceHouseCode}${settings.deviceUnitCode}"
-  state.deviceString = "${settings.deviceHouseCode}-${settings.deviceUnitCode}"
-  if (theDevice) theDevice.deviceNetworkId = state.x10DeviceID
+def remoteHandler (status) {
+try {
+    switch (status) {
+        case ~/^arm_home.*/:
+            //log.trace ("Arm_Home")
+            if (armHomeSwitch) armHomeSwitch.on()
+            break
+        case ~/^arm_awa.*/:
+            //log.trace ("Arm_Awa")
+            if (armSwitch) armSwitch.on()
+            break   
+        case ~/^disarm.*/:
+            //log.trace ("Disarm")
+            if (armSwitch) armSwitch.off()
+            if (armHomeSwitch) armHomeSwitch.off()
+            break            
+        case ~/^panic.*/: 
+            //log.trace ("Panic")
+            if (panic) panic.on()
+            break
+        case ~/^lights_on.*/:
+            //log.trace ("Lights_On")
+            if (allLights) allLights.on()
+            break
+        case ~/^lights_off.*/:
+            //log.trace ("Lights_Off")
+            if (allLights) allLights.off()
+            break
+     }
+   } finally {
+   }
 }
 
-private getDevicebyNetworkId(String theDeviceNetworkId) {
-  return getChildDevices().find {
-    d -> d.deviceNetworkId.startsWith(theDeviceNetworkId)
+def keyfobHandler (status) {
+try {
+    switch (status) {
+        case ~/^arm.*/:
+            //log.trace ("Arm_Awa")
+            if (armSwitch) armSwitch.on()
+            break   
+        case ~/^disarm.*/:
+            //log.trace ("Disarm")
+            if (armSwitch) armSwitch.off()
+            break            
+        case ~/^panic.*/: 
+            //log.trace ("Panic")
+            if (panic) panic.on()
+            break
+        case ~/^lights_on.*/:
+            //log.trace ("Lights_On")
+            if (allLights) allLights.on()
+            break
+        case ~/^lights_off.*/:
+            //log.trace ("Lights_Off")
+            if (allLights) allLights.off()
+            break
+     }
+   } finally {
+   }
+}
+
+
+def switchHandler (status) {
+  try {
+    switch (status) {
+        case ~/.*alert.*/:
+        case ~/^panic.*/: 
+            //log.trace ("Turning on")
+            buttonSwitch.on()
+            break
+        case ~/.*normal.*/:
+            //log.trace ("Turning off")
+            buttonSwitch.off()
+            break
+     }
+  } finally {
   }
+}
+
+def sendNotif(notification) {
+    def message = "${app.getLabel()} ${notification}"
+    
+    log.debug "Sending message $message to recipients: $recipients"
+    sendPushMessage(message)
+ 
+     if (location.contactBookEnabled ) {
+        log.debug "Contact Book enabled!"
+        sendNotificationToContacts(message, recipients)
+    }  
+    
 }

@@ -22,28 +22,34 @@ metadata {
         capability "Switch Level"
     }
 }
+preferences {
+        input name: "logEnable", type: "bool", title: "Enable debug logging", defaultValue: true
+}
+
+def logsOff(){
+    log.warn "debug logging disabled..."
+    device.updateSetting("logEnable",[value:"false",type:"bool"])
+}
 
 // parse events into attributes
 def parse(String description) {}
 
 def on() {
-  log.debug "Executing 'on'"
+  if (logEnable) log.debug "Executing 'on'"
   sendEvent(name : "switch", value : "off");
   sendEvent(name : "switch", value : "on");
 }
 
 def off() {
-  log.debug "Executing 'off'"
+  if (logEnable) log.debug "Executing 'off'"
   sendEvent(name : "switch", value : "on");
   sendEvent(name : "switch", value : "off");
 }
 
 def setLevel(val){
     def prev = device.currentValue("level")
-    log.info "setLevel $val : prev ${prev}"
-    log.debug "current switch value: ${device.currentValue('level')}"
-    log.debug "latest switch value: ${device.latestValue('level')}"
-   
+    if (logEnable) log.debug "setLevel ${val} : prev ${prev}"
+
     // make sure we don't drive switches past allowed values (command will hang device waiting for it to
     // execute. Never commes back)
     if (val < 0){
@@ -65,4 +71,8 @@ def setLevel(val){
     	sendEvent(name:"level",value:val)
     	sendEvent(name:"switch.setLevel",value:val)
     }
+}
+
+def updated() {
+    if (logEnable) runIn(1800,logsOff)
 }

@@ -150,13 +150,16 @@ def switchChange(evt) {
 
 def switchSetLevelHandler(evt)
 {	
+	log.debug "Switch switchSetLevelHandler ${evt.value}"
 	if ((evt.value == "on") || (evt.value == "off" ))
 		return
+ 
 	int level = evt.value.toInteger()
-  int delta = 0;
+    int delta = 0;
 	int stateLevel = state.level.toInteger()
 	
     def command = "";
+	 
     if ( stateLevel > level ) {
     	command = "-dim"
         delta = stateLevel - level
@@ -167,6 +170,7 @@ def switchSetLevelHandler(evt)
     }
  
     state.level = evt.value.toInteger()
+	log.debug "state.level ${state.level}"
     parent.sendStatetoX10(state.x10DeviceID+command, delta)
 	log.debug "switchSetLevelHandler Event: ${level}"
 }

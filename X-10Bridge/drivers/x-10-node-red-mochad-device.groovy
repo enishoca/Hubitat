@@ -18,27 +18,39 @@
  
 metadata {
         definition(name: "X-10 Mochad Device", namespace: "enishoca", author: "Enis Hoca") {
-		capability "Notification" 
-        capability "Telnet"
+        capability "Notification" 
+        capability "Telnet"         
         attribute "Telnet", ""
-		attribute "MochadEvent", ""
+        attribute "MochadEvent", ""
     }
 }
 
+preferences {
+    input name: "logEnable", type: "bool", title: "Enable debug logging", defaultValue: true
+}
+ 
+def logsOff(){
+    log.warn "debug logging disabled..."
+    device.updateSetting("logEnable",[value:"false",type:"bool"])
+}
+
 def installed() {
+    if (logEnable) log.debug "installed"
     initialize()
 }
 
-def updated() {
+def updated() {   
     initialize() 
+    if (logEnable) runIn(1800,logsOff)
 }
 
 def initialize() {
+    if (logEnable) log.debug "initialize"
 	try {
-	  mochad_connect()
+	  runIn(2,mochad_connect)
 	}
 	catch (ex){
-		runIn(60, initialize)
+	  runIn(60, initialize)
 	}
 }
 
@@ -47,15 +59,21 @@ def deviceNotification(String text)
 	sendMsg(text)
 }
 
+def setup(String ipAddress, String port) {
+    if (logEnable) log.debug "setup = ${ipAddress}, Port = ${port}"
+	settings.ipAddress = ipAddress
+    settings.port = port
+    if (logEnable) log.debug "setup = ${settings.ipAddress}, Port = ${settings.port}"
+     
+}
+
 def sendMsg(String msg) {
-    log.debug "Sending msg = [${msg}]"
-	log.debug "current telnet connection value: ${device.currentValue('Telnet')}"
-	 
-    return new hubitat.device.HubAction(msg, hubitat.device.Protocol.TELNET)
+  if (logEnable) log.debug "Sending msg = [${msg}]"
+  return new hubitat.device.HubAction(msg, hubitat.device.Protocol.TELNET)
 }   
 
 def telnetStatus(String status){
-	log.info "telnetStatus- error: ${status}"
+	if (logEnable) log.debug "telnetStatus- error: ${status}"
 	if (status == "receive error: Stream is closed"){
 		
 		log.error "Telnet connection dropped..."
@@ -66,19 +84,19 @@ def telnetStatus(String status){
 	}
 }
 
-
 def parse(String msg) {
-    log.debug "Telnet Response = ${msg}"
+  if (logEnable) log.debug "Telnet Response = ${msg}"
 	
 	sendEvent(name: "MochadEvent", value: msg);	 
 	sendLocationEvent(name: "MochadEvent", value: "MochadEventStatus", data: msg, source: "DEVICE", isStateChange: true)
 }
 
 def mochad_connect(){
-  def ip = "192.168.0.131"
-  def port = "1025"
-	
-  log.debug "Connecting to telnet - IP = ${ip}, Port = ${port.toInteger()}"
+  def address = device.deviceNetworkId.tokenize(":")
+  def ip =   address[0]
+  def port = address[1]
+
+  if (logEnable) log.debug "Connecting to telnet - IP = ${ip}, Port = ${port}"
   telnetConnect(null, ip, port.toInteger(), null, null)
   sendEvent(name: "Telnet", value: "Connected") 
 }

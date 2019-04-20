@@ -42,8 +42,8 @@ def pageMain() {
   dynamicPage(name: "pageMain", title: "", install: true, uninstall: true) {
 
     section("Node Red Settings") {
-      input "nodeRedAddress", "text", title: "Node Red IP Address", description: "(ie. 192.168.1.10)", required: true
-      input "nodeRedPort", "text", title: "Node Red  Port", description: "(ie. 1880)", required: true, defaultValue: "1880"
+      input "nodeRedAddress", "text", title: "Node Red IP Address", description: "(ie. 192.168.1.10)", defaultValue: "192.168.0.21", required: true
+      input "nodeRedPort", "text", title: "Node Red  Port", description: "(ie. 1025)", required: true, defaultValue: "1025"
     }
 
     if (installed) {
@@ -125,19 +125,17 @@ def removeChildDevices(delete) {
 }
 
 def addX10Device() {
-  //log.debug "Adding Device ${deviceName}"
-  //if (!deviceName) return
   def deviceName = "Mochad-client"
   def getHostHubId = location.hubs[0].id //parent.settings.getHostHubId
   def theDeviceNetworkId = getX10DeviceID()
   def theDevice = addChildDevice("enishoca", "X-10 Mochad Device", theDeviceNetworkId, getHostHubId, [label: deviceName, name: deviceName])
   setX10DeviceID(theDevice)
-  updateX10Device();
+  setupsubs();
   log.debug "New Device added ${deviceName}"
 }
 
 def setupsubs() {
-  log.debug "Updating Device ${deviceName}"
+ 
   def deviceName = "Mochad-client"
   log.debug "updateX10Device  ${deviceName}"
   def theDeviceNetworkId = getX10DeviceID();
@@ -202,23 +200,6 @@ private sendTelnet(path)
 	
 }
 
-private getnodeRedAddress() {
-  return settings.nodeRedAddress + ":" + settings.nodeRedPort
-}
-
-private String convertIPtoHex(ipAddress) {
-  if (!ipAddress) return;
-  String hex = ipAddress.tokenize('.').collect {
-    String.format('%02x', it.toInteger())
-  }.join().toUpperCase()
-  return hex
-}
-
-private String convertPortToHex(port) {
-  String hexport = port.toString().format('%04x', port.toInteger()).toUpperCase()
-  return hexport
-}
-
 private getDevicebyNetworkId(deviceNetworkId) {
   return getChildDevices().find {
     d -> d.deviceNetworkId.startsWith((String) deviceNetworkId)
@@ -226,8 +207,6 @@ private getDevicebyNetworkId(deviceNetworkId) {
 }
 
 def sendStatetoX10(deviceString, state) {
-  //deviceString = deviceString.replace("-"," ")
-  //def X10code = deviceString.tokenize('-') 
   sendTelnet("${deviceString.replace("-"," ")} ${state}")
 }
 
@@ -244,8 +223,8 @@ def getX10DeviceID() {
 }
 
 def setX10DeviceID(theDevice) {
-  state.x10DeviceID = "Mochad-client"  //"${settings.deviceType}-${settings.deviceHouseCode}${settings.deviceUnitCode}"
-  state.deviceString = "Mochad-client" //"${settings.deviceHouseCode}-${settings.deviceUnitCode}"
+  state.x10DeviceID =  "${settings.nodeRedAddress}:${settings.nodeRedPort}"
+  state.deviceString = state.x10DeviceID
   if (theDevice) theDevice.deviceNetworkId = state.x10DeviceID
 }
 
