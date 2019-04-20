@@ -207,7 +207,13 @@ private getDevicebyNetworkId(deviceNetworkId) {
 }
 
 def sendStatetoX10(deviceString, state) {
-  sendTelnet("${deviceString.replace("-"," ")} ${state}")
+  try {
+  		sendTelnet("${deviceString.replace("-"," ")} ${state}")
+  }
+  catch (ex) {
+	  log.error ex.message
+  }
+	
 }
 
 def getHostHubId() {
