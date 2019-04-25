@@ -1,5 +1,5 @@
 /**
- *  SmartThings SmartApp: Amazon Dash Button
+ *  Hubitat App: Amazon Dash Button
  *
  *  Author: redloro@gmail.com
  *  Adapted to Hubitat by enishoca@outlook.com
