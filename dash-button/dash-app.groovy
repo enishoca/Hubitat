@@ -48,12 +48,12 @@ def pageMain() {
       state.buttonCount = state.buttonCount - 1
     }
 
-	  state.buttonCount = (!state.buttonCount) ? 0 : state.buttonCount;
+    state.buttonCount = (!state.buttonCount) ? 0 : state.buttonCount;
     ifDebug("Button count: ${state.buttonCount}")
 
     section(title:"Buttons") {
       for (def i = 0; i < state.buttonCount; i++) {
-        href "buttonSettings", title: this."buttonMAC${i}", description: "Controls "+this."buttonSwitch${i}", required: false, page: "buttonSettings", params: [num: i]
+        href "buttonSettings", title: this."buttonName${i}"+ "  " +this."buttonMAC${i}", description: "Controls "+ this."buttonSwitch${i}", required: false, page: "buttonSettings", params: [num: i]
       }
       href "buttonSettings", title: "Add New Button", description: "Tap here to add a new button", image: "http://cdn.device-icons.smartthings.com/thermostat/thermostat-up-icn.png", required: false, page: "buttonSettings", params: [num: state.buttonCount, new: true]
     }
@@ -75,10 +75,12 @@ def buttonSettings(params) {
 
   dynamicPage(name: "buttonSettings", title: "Button Settings", install: false, uninstall: false) {
     section() {
+	    input "buttonName${params.num}", "text", title: "Button Name", description: "Hallway", required: false
       input "buttonMAC${params.num}", "text", title: "Button MAC Address", description: "(ie. aa:bb:cc:dd:ee:f1)", required: false
       input "buttonSwitch${params.num}", "capability.switch", title: "Control Switch", required: false, multiple: true
     }
   }
+	//log.debug "Button - " + this."buttonName${params.num}"+" - MAC " + this."buttonMAC${params.num}" + " - controls "+ this."buttonSwitch${params.num}"
 
 }
 
@@ -107,7 +109,9 @@ def updateButtons() {
   def buttons = [:]
   for (def i = 0; i < state.buttonCount; i++) {
     if (this."buttonMAC${i}" && this."buttonSwitch${i}") {
+	  this."buttonMAC${i}" = this."buttonMAC${i}".toUpperCase()
       buttons.put(this."buttonMAC${i}", "${i}")
+      //log.debug " ${i} MAC " + this."buttonMAC${i}" + " - controls "+ this."buttonSwitch${i}"
     }
   }
 
@@ -185,7 +189,7 @@ private updateDevice(evt) {
   ifDebug("updateDevice: ${evt}")
   //send("A button [${evt.address}] has been pressed")
 
-  def devices = getDevices(evt.address)
+  def devices = getDevices(evt.address.toUpperCase())
   def deviceOn = false
   for (device in devices) {
     if (device.currentSwitch == "on") {

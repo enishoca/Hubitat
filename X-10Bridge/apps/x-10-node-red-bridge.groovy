@@ -103,7 +103,6 @@ def uninstalled() {
 }
 
 def initialize() {
-
   addX10Device()
   setupsubs() 
 }
@@ -112,7 +111,6 @@ def updated() {
   unsubscribe()
   setupsubs()
 }
-
 
 def removeChildDevices(delete) {
   getChildDevices().find {
@@ -135,29 +133,37 @@ def addX10Device() {
 }
 
 def setupsubs() {
- 
   def deviceName = "Mochad-client"
   log.debug "updateX10Device  ${deviceName}"
-  def theDeviceNetworkId = getX10DeviceID();
-  def theDevice = getDevicebyNetworkId(getX10DeviceID())
+  def theDevice = getDevicebyNetworkId()
   if (theDevice) { // The switch already exists
     setX10DeviceID(theDevice)
     theDevice.label = deviceName
     theDevice.name = deviceName
-	log.debug "Subscribe to events  ${deviceName}"
+    theDevice.configure()
+	  log.debug "Subscribe to events  ${deviceName}"
     subscribe(theDevice, "switch", switchChange)
     subscribe(theDevice, "switch.setLevel", switchSetLevelHandler)
-	subscribe(location, "MochadEvent", MochadEventHandler)
+	  subscribe(location, "MochadEvent", MochadEventHandler)
+    subscribe(location, "systemStart", reConnect)
+    log.debug "Device updated ${deviceName}"
   } 
-  log.debug "Device updated ${deviceName}"
 }
 
- 
 def MochadEventHandler(evt) {
   log.debug "Mochad event recieved - data: ${evt.data}"	
   def data = parseJson(evt.data)
   processEvent(data)
   return
+}
+
+def reConnect(evt)
+{
+	log.debug "Reconnecting after system restart"
+  def theDevice = getDevicebyNetworkId()
+  if (theDevice) { 
+    theDevice.configure()
+  } 
 }
 
 private processEvent(body) {
@@ -188,22 +194,12 @@ private updateDevice(deviceString, status) {
 
 private sendTelnet(path)
 {
-  def deviceName = "Mochad-client"
-  log.debug "sendTelnet Device ${deviceName}"
-  
-  def theDeviceNetworkId = getX10DeviceID();
-  def theDevice = getDevicebyNetworkId(getX10DeviceID())
-  if (theDevice) { // 
-	log.debug "The switch already exists ${deviceName}"
+  log.debug "sendTelnet Device ${path}"
+  def theDevice = getDevicebyNetworkId()
+  if (theDevice) { 
     theDevice.deviceNotification(path)
   } 
 	
-}
-
-private getDevicebyNetworkId(deviceNetworkId) {
-  return getChildDevices().find {
-    d -> d.deviceNetworkId.startsWith((String) deviceNetworkId)
-  }
 }
 
 def sendStatetoX10(deviceString, state) {
@@ -234,8 +230,8 @@ def setX10DeviceID(theDevice) {
   if (theDevice) theDevice.deviceNetworkId = state.x10DeviceID
 }
 
-private getDevicebyNetworkId(String theDeviceNetworkId) {
+private getDevicebyNetworkId() {
   return getChildDevices().find {
-    d -> d.deviceNetworkId.startsWith(theDeviceNetworkId)
+    d -> d.deviceNetworkId.startsWith(getX10DeviceID())
   }
 }

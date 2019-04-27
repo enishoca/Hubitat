@@ -19,7 +19,8 @@
 metadata {
         definition(name: "X-10 Mochad Device", namespace: "enishoca", author: "Enis Hoca") {
         capability "Notification" 
-        capability "Telnet"         
+				capability "Configuration"
+        capability "Telnet"  
         attribute "Telnet", ""
         attribute "MochadEvent", ""
     }
@@ -39,24 +40,43 @@ def installed() {
     initialize()
 }
 
-def updated() {   
+def updated() { 
     initialize() 
     if (logEnable) runIn(1800,logsOff)
 }
+ 
+def configure() {  
+	   if (logEnable) log.debug "configure"
+     initialize()
+}
 
 def initialize() {
-    if (logEnable) log.debug "initialize"
-	try {
+    if (logEnable) log.debug "Initialize"
+	  unschedule()
 	  runIn(2,mochad_connect)
-	}
-	catch (ex){
-	  runIn(60, initialize)
-	}
+	  runEvery30Minutes(keepAlive)
+}
+/*
+    runEvery1Minute()
+    runEvery5Minutes()
+    runEvery10Minutes()
+    runEvery15Minutes()
+    runEvery30Minutes()
+    runEvery1Hour()
+    runEvery3Hours()
+
+*/
+def keepAlive() {
+	 sengMsg("RF P15 ON")
 }
 
 def deviceNotification(String text)
 {
-	sendMsg(text)
+	if (text == "Restarted") {
+		initialize()
+	} else { 
+		sendMsg(text)
+	}
 }
 
 def sendMsg(String msg) {
@@ -69,8 +89,8 @@ def telnetStatus(String status){
 	if (status == "receive error: Stream is closed"){
 		
 		log.error "Telnet connection dropped..."
-        sendEvent(name: "Telnet", value: "Disconnected")
-		runIn(60, initialize)
+    sendEvent(name: "Telnet", value: "Disconnected")
+		runIn(60, mochad_connect)
 	} else {
 		sendEvent(name: "Telnet", value: "Connected")
 	}
@@ -89,6 +109,13 @@ def mochad_connect(){
   def port = address[1]
 
   if (logEnable) log.debug "Connecting to telnet - IP = ${ip}, Port = ${port}"
-  telnetConnect(null, ip, port.toInteger(), null, null)
-  sendEvent(name: "Telnet", value: "Connected") 
+	try {
+  	telnetConnect(null, ip, port.toInteger(), null, null)
+    sendEvent(name: "Telnet", value: "Connected") 
+		log.info "Connected to Mochad server"
+	} 
+	catch (ex){
+		log.error "Exception while connecting $ex... retry in 60s"
+	  runIn(60, mochad_connect)
+	}
 }

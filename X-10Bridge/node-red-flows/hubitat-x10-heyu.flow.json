@@ -1,0 +1,91 @@
+[
+  {
+    "id": "f09f5e02.1cfa08",
+    "type": "tab",
+    "label": "Hubitat Heyu Connector",
+    "disabled": false,
+    "info": ""
+  },
+  {
+    "id": "c658bd4f.dd583",
+    "type": "tcp in",
+    "z": "f09f5e02.1cfa08",
+    "name": "Server holding connections at :1025",
+    "server": "server",
+    "host": "",
+    "port": "1025",
+    "datamode": "stream",
+    "datatype": "utf8",
+    "newline": "\\n",
+    "topic": "text",
+    "base64": false,
+    "x": 160,
+    "y": 300,
+    "wires": [
+      [
+        "e74bc559.b4e",
+        "b95b8d72.e111a8"
+      ]
+    ]
+  },
+  {
+    "id": "b4c67981.6c923",
+    "type": "tcp out",
+    "z": "f09f5e02.1cfa08",
+    "host": "",
+    "port": "",
+    "beserver": "reply",
+    "base64": false,
+    "end": false,
+    "name": "reply: all open connections will be messaged",
+    "x": 710,
+    "y": 420,
+    "wires": []
+  },
+  {
+    "id": "e74bc559.b4e",
+    "type": "tcp request",
+    "z": "f09f5e02.1cfa08",
+    "server": "localhost",
+    "port": "1099",
+    "out": "sit",
+    "splitc": " ",
+    "name": "mochad",
+    "x": 360,
+    "y": 420,
+    "wires": [
+      [
+        "f30824ba.2deff8"
+      ]
+    ]
+  },
+  {
+    "id": "f30824ba.2deff8",
+    "type": "function",
+    "z": "f09f5e02.1cfa08",
+    "name": "Parse mochad Messages",
+    "func": "msg.headers = {};\nmsg.headers['Content-Type'] = 'application/json';\nmsg.headers['X10NodeRed'] = 'DeviceUpdate';\n \nvar lastCommand = global.get(\"LastCommand\");\nlastCommand = lastCommand.toLowerCase().trim();\n//node.warn(lastCommand);\n\nconst inLines = new Buffer(msg.payload, 'hex');  \n//node.warn(inLines.toString());\nvar lastCodeSeen = context.get(\"lastCodeSeen\");\nif(typeof lastCodeSeen == \"undefined\") {\n    lastCodeSeen = {\n        housecode: \"x\",\n        unitcode: \"0\"\n    };\n    context.set(\"lastCodeSeen\", lastCodeSeen);\n}\n\ntry {\n\n    var eventData, m;\n    \n    if (m = /^\\d{2}\\/\\d{2}\\s+(?:\\d{2}:){2}\\d{2}\\s(Tx|Rx)\\s+(RF|PL)\\s+House:\\s+([a-pA-P])\\s+Func:\\s+All\\s+(units|lights)\\s+(on|off)$/m.exec(inLines)) {\n        eventData = {\n            protocol: m[2].toLowerCase().trim(),\n            direction: m[1].toLowerCase().trim(),\n            housecode: m[3].toLowerCase().trim(),\n            unitcode: \"*\" + m[4].trim(),\n            state: m[5].toLowerCase().trim()\n        };\n        \n        msg.payload = JSON.stringify(eventData)+\"\\r\\n\";\n        //msg.headers['eventData'] = msg.payload;\n        //node.warn(\"1 eventData \" + JSON.stringify(eventData))\n        return msg; //{payload: JSON.stringify(eventData)};\n    }\n    if (m = /^\\d{2}\\/\\d{2}\\s+(?:\\d{2}:){2}\\d{2}\\s(Tx|Rx)\\s+(RFSEC)\\s+Addr:\\s+([:xX0-9a-fA-F]+)(\\s+)Func:\\s+(.+)$/m.exec(inLines)) {\n        eventData = {\n            protocol: m[2].toLowerCase().trim(),\n            direction: m[1].toLowerCase().trim(),\n            housecode: m[3].toLowerCase().trim(),\n            unitcode: \"*\" + m[4].trim(),\n            state: m[5].toLowerCase().trim()\n        };\n        msg.payload = JSON.stringify(eventData)+\"\\r\\n\";\n        msg.headers['eventData'] = msg.payload;\n        node.warn(\"2 eventData \" + JSON.stringify(eventData))\n        return msg; //{payload: JSON.stringify(eventData)};\n    }\n    if (m = /^\\d{2}\\/\\d{2}\\s+(?:\\d{2}:){2}\\d{2}\\s(Tx|Rx)\\s+(RF|PL)\\s+HouseUnit:\\s+([a-pA-P])(\\d{1,2})\\s+Func:\\s+(On|Off)/m.exec(inLines)) {\n        eventData = {\n            protocol: m[2].toLowerCase().trim(),\n            direction: m[1].toLowerCase().trim(),\n            housecode: m[3].toLowerCase().trim(),\n            unitcode: parseInt(m[4].trim(), 10),\n            state: m[5].toLowerCase().trim()\n        };\n        msg.payload = JSON.stringify(eventData)+\"\\r\\n\";\n        msg.headers['eventData'] = msg.payload;\n        //node.warn(\"3 eventData \" + JSON.stringify(eventData))\n        return msg; //{payload: JSON.stringify(eventData)};\n    } else if (m = /^\\d{2}\\/\\d{2}\\s+(?:\\d{2}:){2}\\d{2}\\s(?:Rx)\\s+(?:RF|PL)\\s+HouseUnit:\\s+([a-pA-P])(\\d{1,2})/m.exec(inLines)) {\n        lastCodeSeen.housecode = m[1].toLowerCase().trim();\n        lastCodeSeen.unitcode = parseInt(m[2].trim(), 10);\n        context.set(\"lastCodeSeen\", lastCodeSeen);\n    }\n    if (lastCodeSeen.housecode && lastCodeSeen.unitcode && (m = /\\d{2}\\/\\d{2}\\s+(?:\\d{2}:){2}\\d{2}\\s(Rx|Tx)\\s+(RF|PL)\\s+House:\\s+([a-pA-P])\\s+Func:\\s+(On|Off|Dim|Bright)$/m.exec(inLines))) {\n        eventData = {\n            protocol: m[2].toLowerCase().trim(),\n            direction: m[1].toLowerCase().trim(),\n            housecode: m[3].toLowerCase().trim(),\n            unitcode: null,\n            state: m[4].toLowerCase().trim()\n        };\n        if (eventData.housecode === lastCodeSeen.housecode) {\n            eventData.unitcode = lastCodeSeen.unitcode;\n            msg.payload = JSON.stringify(eventData)+\"\\r\\n\";\n            msg.headers['eventData'] = msg.payload;\n            //node.warn(\"4 eventData \" + JSON.stringify(eventData))\n            return msg; //{payload: JSON.stringify(eventData)};\n        }\n    }\n} \ncatch(err) {\n   node.warn(\"exception in parsing: \" + err.message); \n   return null; //ignore the exception, its probably a message we don't understand\n   //\n} \n  \nreturn null;\n\n",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 510,
+    "y": 300,
+    "wires": [
+      [
+        "b4c67981.6c923",
+        "b95b8d72.e111a8"
+      ]
+    ]
+  },
+  {
+    "id": "b95b8d72.e111a8",
+    "type": "debug",
+    "z": "f09f5e02.1cfa08",
+    "name": "",
+    "active": true,
+    "console": "false",
+    "complete": "false",
+    "x": 470,
+    "y": 200,
+    "wires": []
+  }
+]
