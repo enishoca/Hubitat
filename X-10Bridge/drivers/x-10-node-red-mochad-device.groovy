@@ -67,7 +67,7 @@ def initialize() {
 
 */
 def keepAlive() {
-	 sengMsg("RF P15 ON")
+	 sendMsg("RF P15 ON")
 }
 
 def deviceNotification(String text)
