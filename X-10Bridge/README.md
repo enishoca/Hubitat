@@ -1,20 +1,26 @@
-# SmartThingsX
+# Hubitat
 ![Image of Logo](https://github.com/enishoca/SmartThingsX/raw/master/x1oredb.png)
 
-SmartThing SmartApps and Device Handlers for X-10 devices using Node Red and Mochad
+Hubitat Apps and Device Handlers for X-10 devices using Node Red and Mochad
 
-This solution allows 2-way communication between SmartThings and X-10 devices using Node Red and Mochad.  You can control your X-10 devices from within ST and use various automation solutions within ST.  You can also use X-10 remotes and motion sensors to control other ST devices.   X-10 equipment is fairly inexpensive and  readily available on E-Bay etc.
+This solution allows 2-way communication between Hubitat and X-10 devices using Node Red and Mochad.  You can control your X-10 devices from within HE and use various automation solutions within HE.  You can also use X-10 remotes and motion sensors to control other devices.   X-10 equipment is fairly inexpensive and  readily available on E-Bay etc.
 
-In this solution all X-10 settings and device mappings are done using the SmartThings app. Only a couple of one-time settings need to be made on the Node Red flow.   
+In this solution all X-10 settings and device mappings are done using the Hubitat app. Only a couple of one-time settings need to be made on the Node Red flow.   
 
-See this page for details 
+See the orginal ST page for details and user discussions
 https://community.smartthings.com/t/release-node-red-bridge-for-x-10-devices-switches-modules-remotes-motion-sensors/116909
 
-Supported Devices and Functionality
-* X-10 Switches and Modules -  on/off is supported
-* X-10 Motion Senors and Remote buttions -  on/off funtions supported from devices sending housecode/unitcode on/off commands
+ ***Changes from ST Version***
+ * Uses telnet connections for more robust connectivity between node red server and HE.  The default TCP port is 1025, you may need to change it, if its not available on the machine where you are running the node red server 
+ * Device P-15 is reserved for pinging the system to maintain connectivtiy every 30 minutes.  If you need to use this device for something else you can change it in x-10-node-red-mochad-device.groovy
+ * Heyu functionality has not been tested, since I don't have a heyu device.  For ST a heyu user worked with me to do the implementation.  If anyone is interested ping me, if you can compare it code and make the changes yourself, feel free to send me a PR
 
-Please note: Dimmer functions and security devices are not supported
+Supported Devices and Functionality
+* X-10 Switches and Modules -  on/off and dimming are supported
+* X-10 Motion Senors and Remote buttions -  on/off funtions supported from devices sending housecode/unitcode on/off commands
+* X-10 Security Devices
+
+Please note: Dimmer functions are a bit wonky - don't rely too much on percentage just treat them like up/down buttons becaue that's what is available on physical X-10 devices.  You can get percentages almost right, if you caliberate by setting to 0 and physically dimming to dark, but it remains dicey, there is no good solution to it.
 
 **Requirements**
 
@@ -88,47 +94,38 @@ Follow the instructions on this page to install Node Red on your Pi https://node
 Play around a little bit to get the hangs of the basics
 
  ***Setup Node Red***
-* Copy the contents of smartthings-x10.flow.json to the clipboard from https://raw.githubusercontent.com/enishoca/SmartThingsX/master/node-red-flows/smartthings-x10.flow.json
+ 
+* [For Mochad] Copy the contents of hubitat-x10.mochad.flow.json to the clipboard from https://raw.githubusercontent.com/enishoca/Hubitat/master/X-10Bridge/node-red-flows/hubitat-x10-mochad.flow.json
+
+* [For Heyu - untested] Copy the contents of hubitat-x10.heyu.flow.json to the clipboard from https://raw.githubusercontent.com/enishoca/Hubitat/master/X-10Bridge/node-red-flows/hubitat-x10-heyu.flow.json
 
 * Browse to the Node Red page on your browser
 
 * Click on the menu to right and select Import->Clipboard
 
-
 * Copy the contents of the clipboard in the edit box, select 'new flow' and import it
 
+* Verify the listening port 1025 is free on the node-red machine, if not change the port in the first node to any other free port, you will need to configure ths in the Hubitat app later
 
 * Edit the flow and put the hostname for the mochad server, and the file path for the settings file.  If you are running node red as user pi and mochad is running on the same machine, you wouldn't need to make any changes.  
 
 * Next Deploy the flow to activate it.
  
-**Step 3: Install the SmartApps and Device Handler in Smertthings**
-You will need to install the following SmartApps and DTH - make sure you install all 4
-* x-10-node-red-bridge.groovy
-* x-10-node-red-button-child.groovy
-* x-10-node-red-switch-child.groovy
-* x-10-node-red-device.groovy
+**Step 3: Add the Apps and Drivers Code in Hubitat**
+You will need to install the following Apps and Drivers in the appropriate sections - make sure you install all of them
 
-The easiest way to get these is to use the github repository by clicking "Settings" when in the Device Handlers or SmartApps segment of the API, and adding a github repository:
-
-Owner: enishoca
-Repository Name: SmartThingsX
-Branch: master
-
-Otherwise, you can download them from here:
-https://github.com/enishoca/SmartThingsX/blob/master/smartapps/enishoca/x-10-node-red-bridge.src/x-10-node-red-bridge.groovy
-
-https://github.com/enishoca/SmartThingsX/blob/master/smartapps/enishoca/x-10-node-red-button-child.src/x-10-node-red-button-child.groovy
-
-https://github.com/enishoca/SmartThingsX/blob/master/smartapps/enishoca/x-10-node-red-switch-child.src/x-10-node-red-switch-child.groovy
-
-https://github.com/enishoca/SmartThingsX/blob/master/devicetypes/enishoca/x-10-node-red-device.src/x-10-node-red-device.groovy
+* [App] x-10-node-red-bridge.groovy - https://raw.githubusercontent.com/enishoca/Hubitat/master/X-10Bridge/apps/x-10-node-red-bridge.groovy
+* [App] x-10-node-red-button-child.groovy - https://raw.githubusercontent.com/enishoca/Hubitat/master/X-10Bridge/apps/x-10-node-red-button-child.groovy
+* [App] x-10-node-red-switch-child.groovy - https://raw.githubusercontent.com/enishoca/Hubitat/master/X-10Bridge/apps/x-10-node-red-switch-child.groovy
+* [App] x-10-node-red-security-child.groovy - https://raw.githubusercontent.com/enishoca/Hubitat/master/X-10Bridge/apps/x-10-node-red-security-child.groovy
+* [Driver] x-10-node-red-device.groovy - https://github.com/enishoca/Hubitat/blob/master/X-10Bridge/drivers/x-10-node-red-device.groovy
+* [Driver] x-10-node-red-mochad-device.groovy - https://raw.githubusercontent.com/enishoca/Hubitat/master/X-10Bridge/drivers/x-10-node-red-mochad-device.groovy
 
 
-**Step 4: SmartApp Setup and Adding Switches, Modules, Remotes and Motion Sensors**
-* Install the SmartApp from your phone 
-You will need to select the hub and configure IP address and port for the Node Red server - this should be the same IP address and port you use to connect to Node Red on the browser 
+**Step 4: Add App and confing Switches, Modules, Remotes and Motion Sensors**
+* Add the X-10 Node Red Bridge Parent App in the Apps section using 'Add Usser App' functionality
+You will need to select the hub and configure IP address and port for the Node Red server - this should be the same IP address you use to connect to Node Red on the browser. Port is specified in the first node in the flow, it defaults to 1025 - ensure that you are using the same port on both sides
 
-* You can then add X-10 devices on smartthings and set their X-10 addresses.  
-Once you add a switch you should be able to turn it on and off.  You can map remote buttons and motion sensor address to any ST Thing that supports on/off function and control it.
+* You can then add X-10 devices in Hubitat and set their X-10 addresses.  
+Once you add a switch you should be able to turn it on and off.  You can map remote buttons and motion sensor address to any device that supports on/off function and control it.
 
