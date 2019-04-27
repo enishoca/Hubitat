@@ -14,9 +14,9 @@ https://community.smartthings.com/t/release-node-red-bridge-for-x-10-devices-swi
  ***Changes from ST Version***
  * Uses telnet connections for more robust connectivity between node red server and HE.  The default TCP port is 1025, you may need to change it, if its not available on the machine where you are running the node red server 
  * Device P-15 is reserved for pinging the system to maintain connectivtiy every 30 minutes.  If you need to use this device for something else you can change it in x-10-node-red-mochad-device.groovy
- * Heyu functionality has not been tested, since I don't have a heyu device.  For ST a heyu user worked with me to do the implementation.  If anyone is interested ping me, if you can compare it code and make the changes yourself, feel free to send me a PR
+* *Heyu functionality has **NOT** been tested,* since I don't have a heyu device. For ST a heyu user worked with me to do the implementation. If anyone is interested ping me, if you can compare it code and make the changes yourself, feel free to send me a PR
 
-Supported Devices and Functionality
+***Supported Devices and Functionality***
 * X-10 Switches and Modules -  on/off and dimming are supported
 * X-10 Motion Senors and Remote buttions -  on/off funtions supported from devices sending housecode/unitcode on/off commands
 * X-10 Security Devices
