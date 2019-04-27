@@ -1,13 +1,14 @@
-# Hubitat
+# Hubitat Apps and Device Handlers for X-10 Devices using Mchad or Heyu with Node Red bridge
 ![Image of Logo](https://github.com/enishoca/SmartThingsX/raw/master/x1oredb.png)
-
-Hubitat Apps and Device Handlers for X-10 devices using Node Red and Mochad
 
 This solution allows 2-way communication between Hubitat and X-10 devices using Node Red and Mochad.  You can control your X-10 devices from within HE and use various automation solutions within HE.  You can also use X-10 remotes and motion sensors to control other devices.   X-10 equipment is fairly inexpensive and  readily available on E-Bay etc.
 
-In this solution all X-10 settings and device mappings are done using the Hubitat app. Only a couple of one-time settings need to be made on the Node Red flow.   
+In this solution all X-10 settings and device mappings are done using the Hubitat app. Only a couple of one-time settings need to be made on the Node Red flow.  
 
-See the orginal ST page for details and user discussions
+Hubitat Community page
+https://community.hubitat.com/t/release-x-10-devices-using-mchad-or-heyu-with-node-red-bridge/14628
+
+Orginal ST page for details and user discussions
 https://community.smartthings.com/t/release-node-red-bridge-for-x-10-devices-switches-modules-remotes-motion-sensors/116909
 
  ***Changes from ST Version***
