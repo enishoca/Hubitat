@@ -122,10 +122,9 @@ You will need to install the following Apps and Drivers in the appropriate secti
 * [Driver] x-10-node-red-device.groovy - https://github.com/enishoca/Hubitat/blob/master/X-10Bridge/drivers/x-10-node-red-device.groovy
 * [Driver] x-10-node-red-mochad-device.groovy - https://raw.githubusercontent.com/enishoca/Hubitat/master/X-10Bridge/drivers/x-10-node-red-mochad-device.groovy
 
+**Step 4: Add App to Hubitat and configure  X-10 devices**
 
-**Step 4: Add App and confing Switches, Modules, Remotes and Motion Sensors**
-* Add the X-10 Node Red Bridge Parent App in the Apps section using 'Add Usser App' functionality
-You will need to select the hub and configure IP address and port for the Node Red server - this should be the same IP address you use to connect to Node Red on the browser. Port is specified in the first node in the flow, it defaults to 1025 - ensure that you are using the same port on both sides
+* Add the X-10 Node Red Bridge Parent App in the Apps section in Hubitat IDE using 'Add Usser App' functionality.  You will need to select the hub and configure IP address and port for the Node Red server - this should be the same IP address you use to connect to Node Red on the browser. Port is specified in the first node in the flow, it defaults to 1025 - ensure that you are using the same port on both sides
 
 * You can then add X-10 devices in Hubitat and set their X-10 addresses.  
 Once you add a switch you should be able to turn it on and off.  You can map remote buttons and motion sensor address to any device that supports on/off function and control it.
