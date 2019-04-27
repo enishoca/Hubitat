@@ -105,7 +105,6 @@ def updated() {
 def initialize() {
   unsubscribe()
   log.debug "Subscribing to event [X10RemoteEvent-${state.deviceString}]"
-  state.nodeRedMac = parent.state.nodeRedMac
   //app.updateLabel("${getDeviceString()} Controlling ${settings.buttonSwitch} ")
   state.deviceString = getDeviceString()
   subscribe(location, "X10RemoteEvent-${state.deviceString}", X10RemoteEventHandler)
