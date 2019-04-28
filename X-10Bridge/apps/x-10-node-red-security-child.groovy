@@ -63,6 +63,8 @@ def normalPage() {
            input(name: "armHomeSwitch", type: "capability.switch", title: "Arm Home / Disarm" , required: false, multiple: true)
            input(name: "allLights", type: "capability.switch", title: "Security Lights" , required: false, multiple: true)
            input(name: "panic", type: "capability.switch", title: "Panic" , required: false, multiple: true)
+           input(name: "panicOn", type: "bool", title: "Panic Button behavior [enabled turns on / disable tunrs off device(s)]", defaultValue: true)
+ 
            break;
          case "keyfob" : 
            input(name: "armSwitch", type: "capability.switch", title: "Arm Away / Disarm" , required: false, multiple: true)
@@ -73,9 +75,7 @@ def normalPage() {
           input(name: "buttonSwitch", type: "capability.switch", title: "Select SmartThings switch to pair with" , required: true, multiple: true)
         }
       }
-      section("Send low battery and tamper notifications?") {
-        input("recipients", "contact", title: "Send notifications to", required: false, multiple: true) 
-     }
+       
   }     
 }
 
@@ -124,30 +124,21 @@ def getDeviceString() {
 
 def lanResponseHandler(evt) {
   //log.debug "sec-lanResponseHandler state: ${state}"
-  log.debug "sec-lanResponseHandler Event: ${evt.stringValue}"
-
-  def map = stringToMap(evt.stringValue)
-  def headers = parent.parseHttpHeaders(map.headers);
-  //log.trace "sec-lanResponseHandler Headers: ${headers}"
-
-  //if this is a registration response update the saved mac
-  if (headers.X10NodeRed == 'DeviceUpdate') {
-      def body = parent.parseHttpBody(map.body);
-      log.trace "sec-lanResponseHandler Body: ${body}"
-      parseSecurityCode(body)
-  }
+  def data = parseJson(evt.data)
+  log.debug "sec-lanResponseHandler Event: ${data}"
+  parseSecurityCode(data)
 }
 
-private parseSecurityCode(body) {
-  log.trace "processEvent Body: ${body}"
+private parseSecurityCode(data) {
+  log.debug "processEvent Body: ${data}"
   // [protocol:rfsec, unitcode:*, direction:rx, state:motion_normal_sp554a, housecode:0x6d]
   def deviceString = ""
   def status
 
   def housecodekey = "housecode"
-  if ((body.containsKey(housecodekey)) && (body.unitcode == '*')) {
-    state.securityCode = body.housecode.toUpperCase()
-    log.trace "New securityCode set: ${state.securityCode}"
+  if ((data.containsKey(housecodekey)) && (data.unitcode == '*')) {
+    state.securityCode = data.housecode.toUpperCase()
+    log.debug "New securityCode set: ${state.securityCode}"
   }
 }
 
@@ -244,7 +235,13 @@ try {
             break            
         case ~/^panic.*/: 
             //log.trace ("Panic")
-            if (panic) panic.on()
+            if (panic) {
+              if (panicOn) {
+                panic.on()
+              } else {
+                panic.off()
+              }
+            }
             break
         case ~/^lights_on.*/:
             //log.trace ("Lights_On")
@@ -305,15 +302,4 @@ def switchHandler (status) {
   }
 }
 
-def sendNotif(notification) {
-    def message = "${app.getLabel()} ${notification}"
-    
-    log.debug "Sending message $message to recipients: $recipients"
-    sendPushMessage(message)
  
-     if (location.contactBookEnabled ) {
-        log.debug "Contact Book enabled!"
-        sendNotificationToContacts(message, recipients)
-    }  
-    
-}
