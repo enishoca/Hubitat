@@ -57,7 +57,7 @@ def pageMain() {
       }
       section(title: "X-10 Security Sensors") {
         href "securitySettings", title: "Security Remotes and Sensors", description: "Tap here to add or manage X-10 Security Remotes and Sensors", 
-             image: "https://raw.githubusercontent.com/enishoca/SmartThingsX/master/x1oredb.png", required: false, page: "buttonSettings"
+             image: "https://raw.githubusercontent.com/enishoca/SmartThingsX/master/x1oredb.png", required: false, page: "securitySettings"
       }
 
     }
