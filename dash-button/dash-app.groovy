@@ -30,9 +30,13 @@ definition(
 preferences {
   page(name: "pageMain")
   page(name: "buttonSettings")
+  page(name: "discoveryPage")
+  page(name: "discoveryWaitPage")
+  
 }
 
 def pageMain() {
+  
   dynamicPage(name: "pageMain", title: "", install: true, uninstall: true) {
 
     section("Node Proxy") {
@@ -55,7 +59,8 @@ def pageMain() {
       for (def i = 0; i < state.buttonCount; i++) {
         href "buttonSettings", title: this."buttonName${i}"+ "  " +this."buttonMAC${i}", description: "Controls "+ this."buttonSwitch${i}", required: false, page: "buttonSettings", params: [num: i]
       }
-      href "buttonSettings", title: "Add New Button", description: "Tap here to add a new button", image: "http://cdn.device-icons.smartthings.com/thermostat/thermostat-up-icn.png", required: false, page: "buttonSettings", params: [num: state.buttonCount, new: true]
+      href "discoveryPage", title: "Add New Button", description: "Tap here to add a new button", image: "http://cdn.device-icons.smartthings.com/thermostat/thermostat-up-icn.png", 
+           required: false, page: "discoveryPage", params: [num: state.buttonCount, new: true]
     }
 
     section("") {
@@ -64,6 +69,7 @@ def pageMain() {
 
   }
 }
+
 
 def buttonSettings(params) {
   params.num = (int)params.num;
@@ -74,6 +80,15 @@ def buttonSettings(params) {
   }
 
   dynamicPage(name: "buttonSettings", title: "Button Settings", install: false, uninstall: false) {
+    if (params.new) {
+        section() {
+            paragraph "Found New Button MAC= " + state.lastMAC
+        }
+    } else {
+           section() {
+           paragraph "Editing Existing Button"
+    	}
+    }
     section() {
 	    input "buttonName${params.num}", "text", title: "Button Name", description: "Hallway", required: false
       input "buttonMAC${params.num}", "text", title: "Button MAC Address", description: "(ie. aa:bb:cc:dd:ee:f1)", required: false
@@ -82,6 +97,44 @@ def buttonSettings(params) {
   }
 	//log.debug "Button - " + this."buttonName${params.num}"+" - MAC " + this."buttonMAC${params.num}" + " - controls "+ this."buttonSwitch${params.num}"
 
+}
+
+def discoveryPage(params) {
+  state.inDiscovery = true
+  return discoveryWaitPage(params) 
+}
+
+def discoveryWaitPage(params) { 
+  params.num = (int)params.num;
+   
+  
+  if (!state.inDiscovery) {
+    def oldButton =-1;
+     
+    for (def i = 0; i < state.buttonCount; i++) {
+      if (this."buttonMAC${i}".toUpperCase() == state.lastMAC) {
+	       oldButton = i;
+         break;
+      }
+      log.debug "i = $i"
+    }
+    if (oldButton >= 0) { 
+        def newparams 
+        params =  [num: oldButton] //= [num: oldButton]newparams 
+    }
+    else {
+      app.updateSetting("buttonMAC${params.num}",[value:state.lastMAC,type:"String"])
+    }
+    
+    return buttonSettings(params) 
+  } 
+  else { 
+    return dynamicPage(name: "discoveryWaitPage", title: "", refreshInterval: 5, install: true, uninstall: true) {
+      section(title: "Press a Dash button now to add or edit it....\n") {
+         paragraph title: "Device Discovery Mode", required: true,"Looking for Dash button...\n "               
+      }  
+    }
+  }
 }
 
 def installed() {
@@ -101,9 +154,13 @@ def updated() {
   removeChildDevices()
   subscribeToEvents()
   updateButtons()
-	
+	if (logEnable) runIn(1800,logsOff)
 }
 
+def logsOff(){
+    log.warn "Dashbutton:debug logging disabled..."
+    app.updateSetting("logEnable",[value:"false",type:"bool"])
+}
 
 def updateButtons() {
   def buttons = [:]
@@ -135,7 +192,6 @@ def discoverButtons() {
   sendCommand('/plugins/dash/discover/30')
 }
 
- 
 
 def lanResponseHandler(fromChildDev) {
  
@@ -188,8 +244,14 @@ private processEvent(evt) {
 private updateDevice(evt) {
   ifDebug("updateDevice: ${evt}")
   //send("A button [${evt.address}] has been pressed")
-
-  def devices = getDevices(evt.address.toUpperCase())
+  state.lastMAC = evt.address.toUpperCase()
+  def devices = getDevices(state.lastMAC)
+  if (state.inDiscovery)
+  {
+    log.info "Discovered $state.lastMAC"
+    state.inDiscovery = false
+    return
+  }
   def deviceOn = false
   for (device in devices) {
     if (device.currentSwitch == "on") {
