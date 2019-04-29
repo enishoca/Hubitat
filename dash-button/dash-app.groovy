@@ -116,7 +116,6 @@ def discoveryWaitPage(params) {
 	       oldButton = i;
          break;
       }
-      log.debug "i = $i"
     }
     if (oldButton >= 0) { 
         def newparams 
